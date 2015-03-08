@@ -13,8 +13,9 @@
 
 /// A channel which reads `f32`s.
 pub trait In {
-    /// Read from this slice of `f32`s.
-    fn from_f32(&mut self, src: &[f32]);
+    /// Get a mutable reference to some buffer owned by the channel, which has room for `size`
+    /// samples.
+    fn input<'x>(&'x mut self, count: usize) -> &'x mut [f32];
 }
 
 /// A channel which writes `f32`s.
@@ -25,5 +26,5 @@ pub trait Out {
     /// Populate `dst` with data from the channel, return the number of `f32`s written, if `dst` is
     /// big enough this will be the same number as is returned by a call to `self.num_samples()`
     /// beforehand.
-    fn to_f32(&self, dst: &mut [f32]) -> usize;
+    fn output(&self, dst: &mut [f32]) -> usize;
 }
