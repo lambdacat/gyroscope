@@ -1,0 +1,13 @@
+[package]
+
+name = "gyroscope"
+version = "0.0.1"
+authors = ["Sam Payson <scpayson@gmail.com>"]
+
+[lib]
+name = "gyrsoscope"
+path = "src/lib.rs"
+
+[[bin]]
+name = "gyro"
+path = "src/bin.rs"
