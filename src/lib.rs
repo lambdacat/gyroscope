@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License along with this program.
 // If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(box_syntax)]
+#![feature(box_syntax, collections)]
 
 /// Channels for input and output from synth nodes.
 pub mod channel;

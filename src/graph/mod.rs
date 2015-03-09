@@ -164,10 +164,16 @@ impl<'x> Graph<'x> {
         assert!(id < self.nodes.len());
 
         if !on_stack.insert(id) {
-            return Err(Error::CycleDetected),
+            return Err(Error::CycleDetected);
         } else if !marked.contains(&id) {
-            for (next_id, _) in self.nodes[id].inputs.iter() {
-                try!(self.topo_sort_visit(marked, on_stack, next_id));
+            // This is... annoying.
+            let inputs = self.nodes[id].inputs.clone();
+
+            for input in inputs {
+                match input {
+                    Some((next_id, _)) => try!(self.topo_sort_visit(marked, on_stack, next_id)),
+                    None               => return Err(Error::IncompleteGraph(id)),
+                }
             }
 
             marked.insert(id);
