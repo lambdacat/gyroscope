@@ -95,42 +95,50 @@ impl<'x> Graph<'x> {
         use self::Error::*;
 
         match self.nodes.get(o_node) {
-            Some(nw) => if nw.node.outputs().len() <= o_node { return Err(NoSuchOutput) },
-            None     => return Err(NoSuchNode),
+            Some(nw) => if nw.node.outputs().len() <= o_chan {
+                return Err(NoSuchOutput(o_node, o_chan))
+            },
+            None     => return Err(NoSuchNode(o_node)),
         }
 
         let nw = match self.nodes.get_mut(i_node) {
             Some(nw) => nw,
-            None     => return Err(NoSuchNode),
+            None     => return Err(NoSuchNode(i_node)),
         };
 
         let old = match nw.inputs.get_mut(i_chan) {
             Some(field) => mem::replace(field, Some((o_node, o_chan))),
-            None        => return Err(NoSuchInput),
+            None        => return Err(NoSuchInput(i_node, i_chan)),
         };
 
         match old {
-            Some(..) => Err(InputAlreadyPatched),
+            Some(..) => Err(InputAlreadyPatched(i_node, i_chan)),
             None     => Ok(()),
         }
     }
 }
 
+/// Shorthand for the standard `Result` type with a `graph::Error` as the error type.
 pub type Result<T> = ::std::result::Result<T, Error>;
 
 /// An error manipulating a `Graph`.
 #[derive(Debug)]
 pub enum Error {
     /// The given `NodeID` doesn't refer to any node in this `Graph`.
-    NoSuchNode,
-
+    NoSuchNode(NodeID),
 
     /// The given `InputID` doesn't refer to any input channel in the corresponding `Node`.
-    NoSuchInput,
+    NoSuchInput(NodeID, InputID),
 
     /// The given input already has an output plugged into it.
-    InputAlreadyPatched,
+    InputAlreadyPatched(NodeID, InputID),
 
     /// The given `OutputID` doesn't refer to any output channel in the corresponding `Node`.
-    NoSuchOutput,
+    NoSuchOutput(NodeID, OutputID),
+
+    /// There are nodes which have inputs without any output's patched into them.
+    IncompleteGraph(NodeID),
+
+    /// There is a cycle in the graph, this is not allowed.
+    CycleDetected,
 }
