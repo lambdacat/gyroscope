@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License along with this program.
 // If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BitSet;
 use std::iter;
 use std::mem;
 
@@ -50,12 +51,29 @@ struct NodeWrapper<'x> {
     inputs: Vec<Option<(NodeID, OutputID)>>,
 }
 
-/// A complete audio pipeline.
+/// A complete audio pipeline. This is a directed multi-graph, and is required to be acyclic.
 pub struct Graph<'x> {
+    // The nodes of the graph.
     nodes: Vec<NodeWrapper<'x>>,
+
+    // A list of NodeIDs, in dependency order.
+    order: Vec<NodeID>,
+
+    // If `dirty` is true, then `order` is inconsistent and needs to be recomputed.
+    dirty: bool,
 }
 
 impl<'x> Graph<'x> {
+
+    /// Create a `Graph` without any `Node`s.
+    pub fn new() -> Graph<'x> {
+        Graph {
+            nodes: vec![],
+            order: vec![],
+            dirty: false,
+        }
+    }
+
     /// Add a node to the `Graph` and return an id to refer to it by.
     pub fn add_node<N: Node + 'x>(&mut self, mut n: N) -> NodeID {
         let inputs = iter::repeat(None)
@@ -68,6 +86,9 @@ impl<'x> Graph<'x> {
             node:   box n,
             inputs: inputs,
         });
+
+        // The order is no longer valid, since we've added a new node.
+        self.dirty = true;
 
         id
     }
@@ -115,6 +136,46 @@ impl<'x> Graph<'x> {
             Some(..) => Err(InputAlreadyPatched(i_node, i_chan)),
             None     => Ok(()),
         }
+    }
+
+    /// This performs a topological sort of the nodes in the graph to determine the order in which
+    /// the nodes will do their processing (to ensure that each `Node` has had its inputs computed
+    /// before it runs).
+    pub fn compute_order(&mut self) -> Result<()> {
+        let mut marked   = BitSet::new();
+        let mut on_stack = BitSet::new();
+
+        self.order.clear();
+
+        for id in 0..self.nodes.len() {
+            if !marked.contains(&id) {
+                try!(self.topo_sort_visit(&mut marked, &mut on_stack, id));
+            }
+        }
+
+        self.dirty = false;
+
+        Ok(())
+    }
+
+    fn topo_sort_visit(&mut self, marked: &mut BitSet, on_stack: &mut BitSet, id: NodeID)
+        -> Result<()> {
+
+        assert!(id < self.nodes.len());
+
+        if !on_stack.insert(id) {
+            return Err(Error::CycleDetected),
+        } else if !marked.contains(&id) {
+            for (next_id, _) in self.nodes[id].inputs.iter() {
+                try!(self.topo_sort_visit(marked, on_stack, next_id));
+            }
+
+            marked.insert(id);
+            self.order.push(id);
+        }
+
+        on_stack.remove(&id);
+        Ok(())
     }
 }
 
