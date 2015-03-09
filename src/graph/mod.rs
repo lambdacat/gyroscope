@@ -18,16 +18,23 @@ use std::mem;
 
 use channel;
 
+/// Module where implementations of nodes live.
+pub mod nodes;
+
 /// A synth node.
 pub trait Node {
     /// Prepare a new set of outputs from the last set of inputs provided.
     fn run(&mut self);
 
+    fn num_inputs(&self) -> usize;
+
     /// Get input channels.
-    fn inputs<'x>(&'x mut self) -> &[&'x mut channel::In];
+    fn get_input<'x>(&'x mut self, idx: usize) -> Option<&'x mut channel::In>;
+
+    fn num_outputs(&self) -> usize;
 
     /// Get output channels.
-    fn outputs<'x>(&'x self) -> &[&'x channel::Out];
+    fn get_output<'x>(&'x self, idx: usize) -> Option<&'x channel::Out>;
 }
 
 /// A descriptor used to refer to a node within a particular graph.
@@ -75,9 +82,9 @@ impl<'x> Graph<'x> {
     }
 
     /// Add a node to the `Graph` and return an id to refer to it by.
-    pub fn add_node<N: Node + 'x>(&mut self, mut n: N) -> NodeID {
+    pub fn add_node<N: Node + 'x>(&mut self, n: N) -> NodeID {
         let inputs = iter::repeat(None)
-            .take(n.inputs().len())
+            .take(n.num_inputs())
             .collect() ;
 
         let id = self.nodes.len();
@@ -116,7 +123,7 @@ impl<'x> Graph<'x> {
         use self::Error::*;
 
         match self.nodes.get(o_node) {
-            Some(nw) => if nw.node.outputs().len() <= o_chan {
+            Some(nw) => if nw.node.num_outputs() <= o_chan {
                 return Err(NoSuchOutput(o_node, o_chan))
             },
             None     => return Err(NoSuchNode(o_node)),
