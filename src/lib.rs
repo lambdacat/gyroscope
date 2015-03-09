@@ -17,5 +17,5 @@
 /// Channels for input and output from synth nodes.
 pub mod channel;
 
-/// The (directed) graph model upon which the whole system is based.
+/// The (directed acyclic multi-) graph model upon which the whole system is based.
 pub mod graph;
